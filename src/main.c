@@ -54,7 +54,6 @@ int main() {
         printf("║  1. Save to file                                             ║\n");
         printf("║  2. Copy to clipboard                                        ║\n");
         printf("║  3. Show only                                                ║\n");
-        printf("║  4. Start listener                                           ║\n");
         printf("║  Your choice: ");
         
         int export_choice;
@@ -81,9 +80,29 @@ int main() {
                 printf("║  Invalid choice                                        ║\n");
         }
         
-        printf("║                                                              ║\n");
-        printf("║  Press Enter to continue...                                  ║\n");
-        printf("╚══════════════════════════════════════════════════════════════╝\n");
+     printf("║                                                              ║\n");
+        printf("║  Start netcat listener on port %-5d?                     ║\n", port);
+        printf("║  1. Yes, start listener                                      ║\n");
+        printf("║  2. No, continue                                            ║\n");
+        printf("║  Your choice: ");
+        
+        int listener_choice;
+        scanf("%d", &listener_choice);
+        
+        if (listener_choice == 1) {
+            printf("║                                                              ║\n");
+            printf("║  Starting netcat listener...                                ║\n");
+            printf("╚══════════════════════════════════════════════════════════════╝\n");
+            
+            // Запускаем listener
+            start_listener(port);
+        } else {
+            printf("║                                                              ║\n");
+            printf("║  Returning to main menu...                                  ║\n");
+            printf("╚══════════════════════════════════════════════════════════════╝\n");
+        }
+        
+        printf("\nPress Enter to continue...");
         getchar(); // Очищаем буфер
         getchar(); // Ждем нажатия Enter
     }
