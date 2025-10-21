@@ -1,23 +1,50 @@
-name: Build Debian Package
+name: Build with Makefile
 
 on:
+  push:
+    tags: ['v*']
   release:
     types: [published]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
     
-    - name: Build Debian package
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build package
       run: |
         sudo apt update
-        sudo apt install -y devscripts build-essential debhelper
-        dpkg-buildpackage -us -uc
+        sudo apt install -y build-essential devscripts debhelper
+        make
+        sudo make install DESTDIR=./install
+        
+    - name: Create DEB package
+      run: |
+        mkdir -p install/DEBIAN
+        cat > install/DEBIAN/control << EOF
+        Package: reverse-shell-generator
+        Version: 1.0-${GITHUB_RUN_NUMBER}
+        Section: net
+        Priority: optional
+        Architecture: amd64
+        Depends: netcat, xclip
+        Maintainer: Auto Build <noreply@github.com>
+        Description: Reverse Shell Generator
+         Advanced tool for penetration testing.
+        EOF
+        
+        dpkg-deb --build install reverse-shell-generator.deb
         
     - name: Upload package
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: deb-package
-        path: "*.deb"
+        name: reverse-shell-generator
+        path: reverse-shell-generator.deb
+        
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: reverse-shell-generator.deb
