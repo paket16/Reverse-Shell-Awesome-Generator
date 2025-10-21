@@ -45,7 +45,7 @@ int main() {
         printf("║  Generated Payload:                                          ║\n");
         printf("║  %-58s  ║\n", "");
         printf("║  ┌────────────────────────────────────────────────────────┐  ║\n");
-        printf("║  │ %-53s  │ ║\n", payload);                                
+        printf("║  │ %-53s  │  ║\n", payload);                                
         printf("║  └────────────────────────────────────────────────────────┘  ║\n");
         printf("║                                                              ║\n");
         
@@ -81,7 +81,7 @@ int main() {
         }
         
         printf("║                                                              ║\n");
-        printf("║  Start netcat listener on port %-5d?                         ║\n", port);
+        printf("║  Start netcat listener on port %-5d?                        ║\n", port);
         printf("║  1. Yes, start listener                                      ║\n");
         printf("║  2. No, continue                                             ║\n");
         printf("║  Your choice: ");
