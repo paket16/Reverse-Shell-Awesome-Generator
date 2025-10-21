@@ -41,9 +41,9 @@ jobs:
         Architecture: amd64
         Depends: netcat, xclip
         Maintainer: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
-        Description: Reverse Shell Generator - Advanced penetration testing tool
+        Description: "Reverse Shell Generator - Advanced penetration testing tool
         Advanced tool for generating reverse shell payloads with multiple types,
-        file export, clipboard support and automatic netcat listener.
+        file export, clipboard support and automatic netcat listener."
         EOF
         
     - name: Build DEB package
@@ -94,4 +94,3 @@ jobs:
           "https://uploads.github.com/repos/${{ github.repository }}/releases/$release_id/assets?name=reverse-shell-generator_${VERSION}_amd64.deb"
         
         echo "✅ DEB package uploaded to release!"
-        
