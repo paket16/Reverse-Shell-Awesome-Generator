@@ -1,53 +1,63 @@
-name: Build with Makefile
+name: Build DEB Package
 
 on:
   push:
     tags: ['v*']
-  release:
-    types: [published]
-
-permissions:
-  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Build package
+    - name: Setup environment
+      run: |
+        # Создаем рабочую папку
+        WORKSPACE="$HOME/workspace"
+        mkdir -p $WORKSPACE
+        cd $WORKSPACE
+        
+    - name: Get source code
+      run: |
+        cd $HOME/workspace
+        git clone https://github.com/${{ github.repository }} source
+        cd source
+        git checkout ${{ github.sha }}
+        
+    - name: Install tools
       run: |
         sudo apt update
-        sudo apt install -y build-essential devscripts debhelper
-        make
-        sudo make install DESTDIR=./install
+        sudo apt install -y build-essential
+        
+    - name: Build binary
+      run: |
+        cd $HOME/workspace/source
+        gcc -static -O2 -Wall -o reverse-shell src/main.c src/reverse_shell.c src/templates.c
         
     - name: Create DEB package
       run: |
-        mkdir -p install/DEBIAN
-        cat > install/DEBIAN/control << EOF
-        Package: reverse-shell-generator
-        Version: 1.0-${GITHUB_RUN_NUMBER}
-        Section: net
-        Priority: optional
-        Architecture: amd64
-        Depends: netcat, xclip
-        Maintainer: Auto Build <noreply@github.com>
-        Description: Reverse Shell Generator
-         Advanced tool for penetration testing.
-        EOF
+        cd $HOME/workspace
+        mkdir -p pkg/usr/bin
+        mkdir -p pkg/DEBIAN
         
-        dpkg-deb --build install reverse-shell-generator.deb
+        cp source/reverse-shell pkg/usr/bin/
         
-    - name: Upload package
-      uses: actions/upload-artifact@v4
-      with:
-        name: reverse-shell-generator
-        path: reverse-shell-generator.deb
+        cat > pkg/DEBIAN/control << EOF
+Package: reverse-shell-generator
+Version: 1.0-${{ github.run_number }}
+Section: net
+Priority: optional
+Architecture: amd64
+Depends: netcat, xclip
+Maintainer: ${{ github.actor }}
+Description: Reverse Shell Generator Advanced penetration testing tool with multiple shell types.
+ EOF
         
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: reverse-shell-generator.deb
+        dpkg-deb --build pkg reverse-shell-generator.deb
+        
+    - name: Verify package
+      run: |
+        cd $HOME/workspace
+        echo "=== Package created ==="
+        ls -la *.deb
+        echo "=== Package info ==="
+        dpkg -I reverse-shell-generator.deb || true
