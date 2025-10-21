@@ -59,70 +59,81 @@ jobs:
         TAG_NAME=${GITHUB_REF#refs/tags/}
         
         echo "Creating release for tag: $TAG_NAME"
-        echo "Repository: ${{ github.repository }}"
         
-        # Создаем релиз через GitHub API
-        response=$(curl -s -w "%{http_code}" -X POST \
-          -H "Authorization: token $GITHUB_TOKEN" \
-          -H "Accept: application/vnd.github.v3+json" \
-          https://api.github.com/repos/${{ github.repository }}/releases \
+        # Создаем релиз через GitHub API с правильными заголовками
+        response=$(curl -L -s -w "|%{http_code}" -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/${{ github.repository }}/releases" \
           -d "{
             \"tag_name\": \"$TAG_NAME\",
+            \"target_commitish\": \"main\",
             \"name\": \"Reverse Shell Generator v$VERSION\",
-            \"body\": \"Reverse Shell Generator $VERSION - Automated build\",
+            \"body\": \"## Reverse Shell Generator v$VERSION\n\nAutomated DEB package build.\n\n### Features:\n- Multiple reverse shell payloads\n- File and clipboard export\n- Automatic netcat listener\n- User-friendly menu interface\n\n### Installation:\n\\\`\\\`\\\`bash\nsudo dpkg -i reverse-shell-generator_${VERSION}_amd64.deb\n\\\`\\\`\\\`\n\n### Usage:\n\\\`\\\`\\\`bash\nreverse-shell\n\\\`\\\`\\\`\",
             \"draft\": false,
-            \"prerelease\": false
+            \"prerelease\": false,
+            \"generate_release_notes\": false
           }")
         
-        http_code="${response: -3}"
-        response_body="${response%???}"
+        # Разделяем response и http code
+        http_code="${response##*|}"
+        response_body="${response%|*}"
         
         echo "HTTP Code: $http_code"
-        echo "Response: $response_body"
+        echo "Response body: $response_body"
         
         if [ "$http_code" -eq 201 ]; then
           echo "✅ Release created successfully"
           release_id=$(echo "$response_body" | jq -r .id)
           echo "release_id=$release_id" >> $GITHUB_OUTPUT
+          upload_url=$(echo "$response_body" | jq -r .upload_url)
+          echo "upload_url=${upload_url%\{*}" >> $GITHUB_OUTPUT
         else
           echo "❌ Failed to create release"
-          echo "release_id=0" >> $GITHUB_OUTPUT
+          echo "Error: $response_body"
           exit 1
         fi
         
     - name: Upload DEB to Release
-      if: steps.create_release.outputs.release_id != '0'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
-        RELEASE_ID=${{ steps.create_release.outputs.release_id }}
+        UPLOAD_URL="${{ steps.create_release.outputs.upload_url }}"
         
-        echo "Uploading DEB to release ID: $RELEASE_ID"
+        echo "Uploading DEB to: $UPLOAD_URL"
+        echo "File: reverse-shell-generator_${VERSION}_amd64.deb"
         
         # Загружаем DEB файл в релиз
-        upload_response=$(curl -s -w "%{http_code}" -X POST \
-          -H "Authorization: token $GITHUB_TOKEN" \
+        upload_response=$(curl -L -s -w "|%{http_code}" -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
           -H "Content-Type: application/octet-stream" \
           --data-binary @"reverse-shell-generator_${VERSION}_amd64.deb" \
-          "https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=reverse-shell-generator_${VERSION}_amd64.deb")
+          "$UPLOAD_URL?name=reverse-shell-generator_${VERSION}_amd64.deb")
         
-        upload_code="${upload_response: -3}"
+        upload_code="${upload_response##*|}"
+        upload_body="${upload_response%|*}"
+        
+        echo "Upload HTTP Code: $upload_code"
         
         if [ "$upload_code" -eq 201 ]; then
           echo "✅ DEB package uploaded successfully!"
+          echo "Upload response: $upload_body"
         else
           echo "❌ Failed to upload DEB package"
-          echo "Upload response: ${upload_response%???}"
+          echo "Upload error: $upload_body"
+          exit 1
         fi
         
     - name: Show final result
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
         TAG_NAME=${GITHUB_REF#refs/tags/}
-        echo "=== BUILD COMPLETED ==="
-        echo "Version: $VERSION"
-        echo "Tag: $TAG_NAME"
-        echo "Package: reverse-shell-generator_${VERSION}_amd64.deb"
-        echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
+        echo "=== BUILD SUCCESSFUL ==="
+        echo "🎉 Release created: https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
+        echo "📦 Package: reverse-shell-generator_${VERSION}_amd64.deb"
+        echo "🏷️ Version: $VERSION"
         ls -la *.deb
