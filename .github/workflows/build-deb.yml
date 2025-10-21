@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Build package
       run: |
@@ -41,7 +41,7 @@ jobs:
         dpkg-deb --build install reverse-shell-generator.deb
         
     - name: Upload package
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: reverse-shell-generator
         path: reverse-shell-generator.deb
