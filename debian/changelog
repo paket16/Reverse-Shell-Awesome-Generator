@@ -1,8 +1,0 @@
-reverse-shell-generator (1.0-1) unstable; urgency=medium
-
-  * Initial release
-  * Multiple reverse shell types
-  * File and clipboard export
-  * Automatic netcat listener
-
- -- Your Name <your@email.com>  Mon, 01 Jan 2024 12:00:00 +0000
