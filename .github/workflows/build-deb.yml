@@ -41,9 +41,9 @@ jobs:
         Architecture: amd64
         Depends: netcat, xclip
         Maintainer: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
-        Description: Reverse Shell Generator
-        Advanced penetration testing tool with multiple reverse shell types.
-        Features: file export, clipboard support, netcat listener.
+        Description: Reverse Shell Generator - Advanced penetration testing tool
+        Advanced tool for generating reverse shell payloads with multiple types,
+        file export, clipboard support and automatic netcat listener.
         EOF
         
     - name: Build DEB package
@@ -66,12 +66,12 @@ jobs:
           -d "{
             \"tag_name\": \"$TAG_NAME\",
             \"name\": \"Reverse Shell Generator v$VERSION\",
-            \"body\": \"## Reverse Shell Generator v$VERSION\n\n**Automated DEB Package Build**\n\n### Features:\n- Multiple reverse shell types (Bash, Python, PHP, PowerShell, etc.)\n- File export and clipboard support\n- Automatic netcat listener\n- Easy to use menu interface\n\n### Installation:\n\\\`\\\`\\\`bash\nsudo dpkg -i reverse-shell-generator_${VERSION}_amd64.deb\n\\\`\\\`\\\`\n\n### Usage:\n\\\`\\\`\\\`bash\nreverse-shell\n\\\`\\\`\\\`\",
+            \"body\": \"## Reverse Shell Generator v$VERSION\\n\\nAutomated DEB Package Build\\n\\n### Features:\\n- Multiple reverse shell types\\n- File export and clipboard support\\n- Automatic netcat listener\\n- Easy to use menu interface\\n\\n### Installation:\\n\\\`\\\`\\\`bash\\nsudo dpkg -i reverse-shell-generator_${VERSION}_amd64.deb\\n\\\`\\\`\\\`\\n\\n### Usage:\\n\\\`\\\`\\\`bash\\nreverse-shell\\n\\\`\\\`\\\`\",
             \"draft\": false,
             \"prerelease\": false
           }")
         
-        echo "Release created: $response"
+        echo "Release created"
         
     - name: Upload DEB to Release
       env:
@@ -95,12 +95,3 @@ jobs:
         
         echo "✅ DEB package uploaded to release!"
         
-    - name: Show build info
-      run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        echo "=== Build Summary ==="
-        echo "Version: $VERSION"
-        echo "Package: reverse-shell-generator_${VERSION}_amd64.deb"
-        echo "Release: https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF#refs/tags/}"
-        echo "=== Package Info ==="
-        dpkg -I reverse-shell-generator_${VERSION}_amd64.deb
