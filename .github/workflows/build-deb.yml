@@ -42,17 +42,17 @@ jobs:
         cp source/reverse-shell pkg/usr/bin/
         
         cat > pkg/DEBIAN/control << EOF
-Package: reverse-shell-generator
-Version: 1.0-${{ github.run_number }}
-Section: net
-Priority: optional
-Architecture: amd64
-Depends: netcat, xclip
-Maintainer: ${{ github.actor }}
-Description: Reverse Shell Generator Advanced penetration testing tool with multiple shell types.
- EOF
-        
-        dpkg-deb --build pkg reverse-shell-generator.deb
+        Package: reverse-shell-generator
+        Version: 1.0-${{ github.run_number }}
+        Section: net
+        Priority: optional
+        Architecture: amd64
+        Depends: netcat, xclip
+        Maintainer: ${{ github.actor }}
+        Description: Reverse Shell Generator Advanced penetration testing tool with multiple shell types.
+        EOF
+                
+                dpkg-deb --build pkg reverse-shell-generator.deb
         
     - name: Verify package
       run: |
