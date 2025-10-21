@@ -1,63 +1,106 @@
-name: Build DEB Package
+name: Build DEB Package and Create Release
 
 on:
   push:
     tags: ['v*']
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Setup environment
+    - name: Checkout code using git
       run: |
-        # Создаем рабочую папку
-        WORKSPACE="$HOME/workspace"
-        mkdir -p $WORKSPACE
-        cd $WORKSPACE
-        
-    - name: Get source code
-      run: |
-        cd $HOME/workspace
-        git clone https://github.com/${{ github.repository }} source
-        cd source
+        git clone https://github.com/${{ github.repository }} .
         git checkout ${{ github.sha }}
-        
-    - name: Install tools
+      
+    - name: Install build dependencies
       run: |
         sudo apt update
-        sudo apt install -y build-essential
+        sudo apt install -y build-essential curl jq
         
-    - name: Build binary
+    - name: Compile binary
       run: |
-        cd $HOME/workspace/source
         gcc -static -O2 -Wall -o reverse-shell src/main.c src/reverse_shell.c src/templates.c
+        chmod +x reverse-shell
         
-    - name: Create DEB package
+    - name: Create DEB package structure
       run: |
-        cd $HOME/workspace
-        mkdir -p pkg/usr/bin
-        mkdir -p pkg/DEBIAN
+        mkdir -p reverse-shell-pkg/usr/bin
+        mkdir -p reverse-shell-pkg/DEBIAN
+        cp reverse-shell reverse-shell-pkg/usr/bin/
         
-        cp source/reverse-shell pkg/usr/bin/
-        
-        cat > pkg/DEBIAN/control << EOF
+    - name: Create control file
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        cat > reverse-shell-pkg/DEBIAN/control << EOF
         Package: reverse-shell-generator
-        Version: 1.0-${{ github.run_number }}
+        Version: $VERSION
         Section: net
         Priority: optional
         Architecture: amd64
         Depends: netcat, xclip
-        Maintainer: ${{ github.actor }}
-        Description: Reverse Shell Generator Advanced penetration testing tool with multiple shell types.
+        Maintainer: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
+        Description: Reverse Shell Generator
+        Advanced penetration testing tool with multiple reverse shell types.
+        Features: file export, clipboard support, netcat listener.
         EOF
-                
-                dpkg-deb --build pkg reverse-shell-generator.deb
         
-    - name: Verify package
+    - name: Build DEB package
       run: |
-        cd $HOME/workspace
-        echo "=== Package created ==="
-        ls -la *.deb
-        echo "=== Package info ==="
-        dpkg -I reverse-shell-generator.deb || true
+        VERSION=${GITHUB_REF#refs/tags/v}
+        dpkg-deb --build reverse-shell-pkg reverse-shell-generator_${VERSION}_amd64.deb
+        
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        
+        # Создаем релиз через GitHub API
+        response=$(curl -s -X POST \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ github.repository }}/releases \
+          -d "{
+            \"tag_name\": \"$TAG_NAME\",
+            \"name\": \"Reverse Shell Generator v$VERSION\",
+            \"body\": \"## Reverse Shell Generator v$VERSION\n\n**Automated DEB Package Build**\n\n### Features:\n- Multiple reverse shell types (Bash, Python, PHP, PowerShell, etc.)\n- File export and clipboard support\n- Automatic netcat listener\n- Easy to use menu interface\n\n### Installation:\n\\\`\\\`\\\`bash\nsudo dpkg -i reverse-shell-generator_${VERSION}_amd64.deb\n\\\`\\\`\\\`\n\n### Usage:\n\\\`\\\`\\\`bash\nreverse-shell\n\\\`\\\`\\\`\",
+            \"draft\": false,
+            \"prerelease\": false
+          }")
+        
+        echo "Release created: $response"
+        
+    - name: Upload DEB to Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        
+        # Получаем ID созданного релиза
+        release_id=$(curl -s \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME" | jq -r .id)
+        
+        # Загружаем DEB файл в релиз
+        curl -X POST \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Content-Type: application/octet-stream" \
+          --data-binary @"reverse-shell-generator_${VERSION}_amd64.deb" \
+          "https://uploads.github.com/repos/${{ github.repository }}/releases/$release_id/assets?name=reverse-shell-generator_${VERSION}_amd64.deb"
+        
+        echo "✅ DEB package uploaded to release!"
+        
+    - name: Show build info
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "=== Build Summary ==="
+        echo "Version: $VERSION"
+        echo "Package: reverse-shell-generator_${VERSION}_amd64.deb"
+        echo "Release: https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF#refs/tags/}"
+        echo "=== Package Info ==="
+        dpkg -I reverse-shell-generator_${VERSION}_amd64.deb
