@@ -1,4 +1,4 @@
-name: Simple Build and Release
+name: Build and Release DEB Package
 
 on:
   push:
@@ -8,15 +8,20 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout and build
+    - name: Checkout code
       run: |
         git clone https://github.com/${{ github.repository }} .
+      
+    - name: Build binary and DEB package
+      run: |
+        # Компилируем
         gcc -static -O2 -Wall -o reverse-shell src/main.c src/reverse_shell.c src/templates.c
         
+        # Создаем DEB пакет
         VERSION=${GITHUB_REF#refs/tags/v}
         mkdir -p pkg/usr/bin pkg/DEBIAN
         cp reverse-shell pkg/usr/bin/
@@ -28,26 +33,74 @@ jobs:
         Priority: optional
         Architecture: amd64
         Depends: netcat, xclip
-        Maintainer: Auto Builder
+        Maintainer: GitHub Actions
         Description: Reverse Shell Generator
         EOF
         
         dpkg-deb --build pkg reverse-shell-generator_${VERSION}_amd64.deb
+        echo "✅ DEB package created"
+        ls -la *.deb
         
-    - name: Create Release
-      run: |
-        TAG=${{ github.ref_name }}
-        VERSION=${TAG#v}
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/github-script@v6
+      env:
+        VERSION: ${{ github.ref_name }}
+      with:
+        script: |
+          const version = process.env.VERSION.replace('v', '');
+          const tagName = process.env.VERSION;
+          
+          console.log(`Creating release for tag: ${tagName}`);
+          
+          const response = await github.rest.repos.createRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            tag_name: tagName,
+            name: `Reverse Shell Generator ${tagName}`,
+            body: `## Reverse Shell Generator ${tagName}\n\nDEB package for installation.\n\n### Installation:\n\`\`\`bash\nsudo dpkg -i reverse-shell-generator_${version}_amd64.deb\n\`\`\``,
+            draft: false,
+            prerelease: false
+          });
+          
+          console.log(`✅ Release created with ID: ${response.data.id}`);
+          core.setOutput('release_id', response.data.id);
+          core.setOutput('upload_url', response.data.upload_url);
         
-        # Простой JSON без сложного форматирования
-        JSON_DATA="{\"tag_name\":\"$TAG\",\"name\":\"Version $VERSION\",\"body\":\"Reverse Shell Generator $VERSION\",\"draft\":false,\"prerelease\":false}"
-        
-        echo "JSON data: $JSON_DATA"
-        
-        curl -L -X POST \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          -H "Content-Type: application/json" \
-          "https://api.github.com/repos/${{ github.repository }}/releases" \
-          -d "$JSON_DATA"
+    - name: Upload DEB to Release
+      uses: actions/github-script@v6
+      env:
+        VERSION: ${{ github.ref_name }}
+        RELEASE_ID: ${{ steps.create_release.outputs.release_id }}
+      with:
+        script: |
+          const fs = require('fs');
+          const version = process.env.VERSION.replace('v', '');
+          const releaseId = process.env.RELEASE_ID;
+          
+          console.log(`Uploading DEB package to release ID: ${releaseId}`);
+          console.log(`File: reverse-shell-generator_${version}_amd64.deb`);
+          
+          // Проверяем что файл существует
+          if (!fs.existsSync(`reverse-shell-generator_${version}_amd64.deb`)) {
+            core.setFailed('DEB file not found!');
+            return;
+          }
+          
+          // Читаем файл
+          const debData = fs.readFileSync(`reverse-shell-generator_${version}_amd64.deb`);
+          
+          // Загружаем в релиз
+          await github.rest.repos.uploadReleaseAsset({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            release_id: parseInt(releaseId),
+            name: `reverse-shell-generator_${version}_amd64.deb`,
+            data: debData,
+            headers: {
+              'content-type': 'application/vnd.debian.binary-package',
+              'content-length': debData.length
+            }
+          });
+          
+          console.log('✅ DEB package uploaded successfully!');
