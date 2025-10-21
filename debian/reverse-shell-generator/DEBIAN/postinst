@@ -1,0 +1,8 @@
+#!/bin/bash
+# DEBIAN/postinst
+
+set -e
+
+echo "Reverse Shell Generator installed successfully!"
+echo "Usage: reverse-shell"
+echo "Make sure netcat and xclip are installed for full functionality."

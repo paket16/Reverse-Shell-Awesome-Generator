@@ -1,0 +1,13 @@
+Package: reverse-shell-generator-dbgsym
+Package-Type: ddeb
+Source: reverse-shell-generator
+Version: 1.0-1
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: Your Name <your@email.com>
+Installed-Size: 103
+Depends: reverse-shell-generator (= 1.0-1)
+Section: debug
+Priority: optional
+Description: debug symbols for reverse-shell-generator
+Build-Ids: 3e3bf776fab2396e1ddaeba7648da93291d04fd7

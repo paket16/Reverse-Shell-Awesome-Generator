@@ -1,0 +1,23 @@
+name: Build Debian Package
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build Debian package
+      run: |
+        sudo apt update
+        sudo apt install -y devscripts build-essential debhelper
+        dpkg-buildpackage -us -uc
+        
+    - name: Upload package
+      uses: actions/upload-artifact@v3
+      with:
+        name: deb-package
+        path: "*.deb"
