@@ -80,10 +80,10 @@ int main() {
                 printf("║  Invalid choice                                        ║\n");
         }
         
-     printf("║                                                              ║\n");
-        printf("║  Start netcat listener on port %-5d?                     ║\n", port);
+        printf("║                                                              ║\n");
+        printf("║  Start netcat listener on port %-5d?                         ║\n", port);
         printf("║  1. Yes, start listener                                      ║\n");
-        printf("║  2. No, continue                                            ║\n");
+        printf("║  2. No, continue                                             ║\n");
         printf("║  Your choice: ");
         
         int listener_choice;
