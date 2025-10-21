@@ -1,139 +1,53 @@
-name: Build DEB Package and Create Release
+name: Simple Build and Release
 
 on:
   push:
     tags: ['v*']
 
+permissions:
+  contents: write
+
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code using git
+    - name: Checkout and build
       run: |
         git clone https://github.com/${{ github.repository }} .
-        git checkout ${{ github.sha }}
-      
-    - name: Install build dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y build-essential curl jq
-        
-    - name: Compile binary
-      run: |
         gcc -static -O2 -Wall -o reverse-shell src/main.c src/reverse_shell.c src/templates.c
-        chmod +x reverse-shell
         
-    - name: Create DEB package structure
-      run: |
-        mkdir -p reverse-shell-pkg/usr/bin
-        mkdir -p reverse-shell-pkg/DEBIAN
-        cp reverse-shell reverse-shell-pkg/usr/bin/
-        
-    - name: Create control file
-      run: |
         VERSION=${GITHUB_REF#refs/tags/v}
-        cat > reverse-shell-pkg/DEBIAN/control << EOF
+        mkdir -p pkg/usr/bin pkg/DEBIAN
+        cp reverse-shell pkg/usr/bin/
+        
+        cat > pkg/DEBIAN/control << EOF
         Package: reverse-shell-generator
         Version: $VERSION
         Section: net
         Priority: optional
         Architecture: amd64
         Depends: netcat, xclip
-        Maintainer: ${{ github.actor }}
+        Maintainer: Auto Builder
         Description: Reverse Shell Generator
         EOF
         
-    - name: Build DEB package
+        dpkg-deb --build pkg reverse-shell-generator_${VERSION}_amd64.deb
+        
+    - name: Create Release
       run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        dpkg-deb --build reverse-shell-pkg reverse-shell-generator_${VERSION}_amd64.deb
-        echo "✅ DEB package built: reverse-shell-generator_${VERSION}_amd64.deb"
+        TAG=${{ github.ref_name }}
+        VERSION=${TAG#v}
         
-    - name: Create GitHub Release
-      id: create_release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        TAG_NAME=${GITHUB_REF#refs/tags/}
+        # Простой JSON без сложного форматирования
+        JSON_DATA="{\"tag_name\":\"$TAG\",\"name\":\"Version $VERSION\",\"body\":\"Reverse Shell Generator $VERSION\",\"draft\":false,\"prerelease\":false}"
         
-        echo "Creating release for tag: $TAG_NAME"
+        echo "JSON data: $JSON_DATA"
         
-        # Создаем релиз через GitHub API с правильными заголовками
-        response=$(curl -L -s -w "|%{http_code}" -X POST \
+        curl -L -X POST \
           -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
+          -H "Content-Type: application/json" \
           "https://api.github.com/repos/${{ github.repository }}/releases" \
-          -d "{
-            \"tag_name\": \"$TAG_NAME\",
-            \"target_commitish\": \"main\",
-            \"name\": \"Reverse Shell Generator v$VERSION\",
-            \"body\": \"## Reverse Shell Generator v$VERSION\n\nAutomated DEB package build.\n\n### Features:\n- Multiple reverse shell payloads\n- File and clipboard export\n- Automatic netcat listener\n- User-friendly menu interface\n\n### Installation:\n\\\`\\\`\\\`bash\nsudo dpkg -i reverse-shell-generator_${VERSION}_amd64.deb\n\\\`\\\`\\\`\n\n### Usage:\n\\\`\\\`\\\`bash\nreverse-shell\n\\\`\\\`\\\`\",
-            \"draft\": false,
-            \"prerelease\": false,
-            \"generate_release_notes\": false
-          }")
-        
-        # Разделяем response и http code
-        http_code="${response##*|}"
-        response_body="${response%|*}"
-        
-        echo "HTTP Code: $http_code"
-        echo "Response body: $response_body"
-        
-        if [ "$http_code" -eq 201 ]; then
-          echo "✅ Release created successfully"
-          release_id=$(echo "$response_body" | jq -r .id)
-          echo "release_id=$release_id" >> $GITHUB_OUTPUT
-          upload_url=$(echo "$response_body" | jq -r .upload_url)
-          echo "upload_url=${upload_url%\{*}" >> $GITHUB_OUTPUT
-        else
-          echo "❌ Failed to create release"
-          echo "Error: $response_body"
-          exit 1
-        fi
-        
-    - name: Upload DEB to Release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        UPLOAD_URL="${{ steps.create_release.outputs.upload_url }}"
-        
-        echo "Uploading DEB to: $UPLOAD_URL"
-        echo "File: reverse-shell-generator_${VERSION}_amd64.deb"
-        
-        # Загружаем DEB файл в релиз
-        upload_response=$(curl -L -s -w "|%{http_code}" -X POST \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer $GITHUB_TOKEN" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          -H "Content-Type: application/octet-stream" \
-          --data-binary @"reverse-shell-generator_${VERSION}_amd64.deb" \
-          "$UPLOAD_URL?name=reverse-shell-generator_${VERSION}_amd64.deb")
-        
-        upload_code="${upload_response##*|}"
-        upload_body="${upload_response%|*}"
-        
-        echo "Upload HTTP Code: $upload_code"
-        
-        if [ "$upload_code" -eq 201 ]; then
-          echo "✅ DEB package uploaded successfully!"
-          echo "Upload response: $upload_body"
-        else
-          echo "❌ Failed to upload DEB package"
-          echo "Upload error: $upload_body"
-          exit 1
-        fi
-        
-    - name: Show final result
-      run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        TAG_NAME=${GITHUB_REF#refs/tags/}
-        echo "=== BUILD SUCCESSFUL ==="
-        echo "🎉 Release created: https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
-        echo "📦 Package: reverse-shell-generator_${VERSION}_amd64.deb"
-        echo "🏷️ Version: $VERSION"
-        ls -la *.deb
+          -d "$JSON_DATA"
