@@ -8,6 +8,12 @@ A powerful tool for penetration testers to generate various reverse shell payloa
 - Automatic netcat listener
 - User-friendly menu interface
 
+## Install
+
+- For debian based distors:
+- ```bash
+  sudo dpkg -i reverse-shell-generator-vX.X.X.deb
+
 ## Usage
 ```bash
 reverse-shell
