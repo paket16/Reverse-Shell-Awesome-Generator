@@ -3,16 +3,43 @@
 
 #define BUFFER_SIZE 1024
 
+#define COLOR_RESET "\033[0m"
+#define COLOR_RED "\033[31m"
+#define COLOR_GREEN "\033[32m"
+#define COLOR_YELLOW "\033[33m"
+#define COLOR_BLUE "\033[34m"
+#define COLOR_MAGENTA "\033[35m"
+#define COLOR_CYAN "\033[36m"
 
-void show_menu(ShellTemplate *templates, int count) {
-    printf("\n=== Reverse Shell Generator ===\n");
-    printf("Выберите тип reverse shell:\n\n");
+
+// void show_menu(ShellTemplate *templates, int count) {
+//     printf("\n=== Reverse Shell Generator ===\n");
+//     printf("Выберите тип reverse shell:\n\n");
     
-    for (int i = 0; i < count; i++) {
-        printf("%d. %s - %s\n", i + 1, templates[i].name, templates[i].description);
-    }
-    printf("\n0. Выход\n");
-    printf("\nВаш выбор: ");
+//     for (int i = 0; i < count; i++) {
+//         printf("%d. %s - %s\n", i + 1, templates[i].name, templates[i].description);
+//     }
+//     printf("\n0. Выход\n");
+//     printf("\nВаш выбор: ");
+// }
+
+void clear_screen() {
+    printf("\033[2J\033[H"); // ANSI escape codes для очистки экрана
+}
+
+void show_header() {
+    clear_screen();
+    printf("\n");
+    printf(COLOR_CYAN "╔══════════════════════════════════════════════════════════════╗\n" COLOR_RESET);
+    printf(COLOR_CYAN "║" COLOR_YELLOW "                  REVERSE SHELL GENERATOR" COLOR_CYAN "                     ║\n" COLOR_RESET);
+    printf("╠══════════════════════════════════════════════════════════════╣\n");
+}
+
+void show_footer() {
+    printf("║                                                              ║\n");
+    printf("║  0. Exit                                                     ║\n");
+    printf("╚══════════════════════════════════════════════════════════════╝\n");
+    printf("\nYour choice: ");
 }
 
 int get_user_choice(int max_options) {
@@ -88,4 +115,48 @@ void start_listener(int port) {
     } else {
         printf("Netcat listener завершен\n");
     }
+}
+
+void show_menu(ShellTemplate *templates, int count) {
+    printf("║  Select shell type:                                          ║\n");
+    printf("║                                                              ║\n");
+    
+    char current_category[30] = "";
+    int item_number = 1;
+    
+    for (int i = 0; i < count; i++) {
+        // Показываем заголовок категории если она изменилась
+        if (strcmp(current_category, templates[i].category) != 0) {
+            strcpy(current_category, templates[i].category);
+            printf("║  ┌─[ %s ]", current_category);
+            
+            // Заполняем оставшееся пространство (точный расчет)
+            int category_length = strlen(current_category);
+            int padding = 52 - category_length; // 58 - 6 (длина "[ ]" и отступы)
+            for (int j = 0; j < padding; j++) {
+                printf("─");
+            }
+            printf("┐ ║\n");
+        }
+        
+        // Показываем элемент меню
+        printf("║  │ %2d. %-18s %30s   │ ║\n", 
+               item_number, 
+               templates[i].name, 
+               "");
+        
+        // Показываем описание
+        printf("║  │    %-47s      │ ║\n", templates[i].description);
+        
+        item_number++;
+        
+        // Если следующая категория другая или это последний элемент, закрываем блок
+        if (i == count - 1 || strcmp(templates[i].category, templates[i + 1].category) != 0) {
+            printf("║  └─────────────────────────────────────────────────────────┘ ║\n");
+            if (i != count - 1) {
+                printf("║                                                              ║\n");
+            }
+        }
+    }
+    
 }

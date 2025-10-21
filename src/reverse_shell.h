@@ -17,9 +17,9 @@
 
 typedef struct {
     char name[50];
-    char description[200];
-    char template[2048];
-    char meta[50];
+    char description[100];
+    char template[512];
+    char category[30];  // Новая поле для категории
 } ShellTemplate;
 
 typedef enum {
